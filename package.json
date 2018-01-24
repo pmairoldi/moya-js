@@ -1,0 +1,40 @@
+{
+  "name": "moya-js",
+  "version": "0.0.0",
+  "description": "Network abstraction layer written in javascript",
+  "main": "index.js",
+  "scripts": {
+    "precommit": "lint-staged",
+    "prepush": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "build": "tsc"
+  },
+  "keywords": ["networking"],
+  "author": "Pierre-Marc Airoldi",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^22.1.0",
+    "husky": "^0.14.3",
+    "jest": "^22.1.4",
+    "lint-staged": "^6.0.1",
+    "prettier": "^1.10.2",
+    "ts-jest": "^22.0.1",
+    "typescript": "^2.6.2"
+  },
+  "prettier": {
+    "printWidth": 120
+  },
+  "jest": {
+    "transform": {
+      ".(ts|tsx)": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
+    "testPathIgnorePatterns": ["/node_modules/", "/distribution/"],
+    "moduleFileExtensions": ["js", "jsx", "json", "ts", "tsx"]
+  },
+  "lint-staged": {
+    "*.@(ts)": ["prettier --parser typescript --write", "git add"],
+    "*.@(json|js)": ["prettier --write", "git add"]
+  }
+}
