@@ -19,7 +19,7 @@ describe("Method", () => {
       let expected = expectation[1];
 
       it(`${method} should ${expected ? "" : "not"} support multipart`, () => {
-        expect(method.supportsMultipart).toEqual(expected);
+        expect(Method.supportsMultipart(method)).toEqual(expected);
       });
     });
   });

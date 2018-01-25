@@ -36,7 +36,8 @@ export type EndpointSampleResponse =
   | EndpointSampleNetworkResponse
   | EndpointSampleHttpResponse
   | EndpointSampleNetworkError;
-export type SampleResponseClosure = () => SampleResponseClosure;
+
+export type SampleResponseClosure = () => EndpointSampleResponse;
 
 /// Class for reifying a target of the `Target` enum unto a concrete `Endpoint`.
 export class Endpoint<Target> {
@@ -53,14 +54,14 @@ export class Endpoint<Target> {
   readonly task: Task;
 
   /// The HTTP header fields for the request.
-  readonly httpHeaderFields: Map<string, string> | null;
+  readonly httpHeaderFields: Map<string, string> | undefined;
 
   constructor(
     url: string,
     sampleResponseClosure: SampleResponseClosure,
     method: Method,
     task: Task,
-    httpHeaderFields: Map<string, string> | null
+    httpHeaderFields: Map<string, string> | undefined
   ) {
     this.url = url;
     this.sampleResponseClosure = sampleResponseClosure;
@@ -79,12 +80,12 @@ export class Endpoint<Target> {
     return new Endpoint(this.url, this.sampleResponseClosure, this.method, this.task, this.httpHeaderFields);
   }
 
-  private add(headers: Map<string, string> | null): Map<string, string> | null {
-    if (headers === null || headers.size === 0) {
+  private add(headers: Map<string, string> | undefined): Map<string, string> | undefined {
+    if (headers === undefined || headers.size === 0) {
       return this.httpHeaderFields;
     }
 
-    let newHTTPHeaderFields = this.httpHeaderFields === null ? new Map<string, string>() : this.httpHeaderFields;
+    let newHTTPHeaderFields = this.httpHeaderFields === undefined ? new Map<string, string>() : this.httpHeaderFields;
 
     headers.forEach((value, key) => {
       newHTTPHeaderFields.set(key, value);
@@ -106,7 +107,7 @@ export class Endpoint<Target> {
     var requestConfig: RequestInit = {
       method: this.method.toString(),
       headers:
-        this.httpHeaderFields === null
+        this.httpHeaderFields === undefined
           ? undefined
           : Array.from<[string, string], string[]>(this.httpHeaderFields.entries())
     };

@@ -29,12 +29,14 @@
     "transform": {
       ".(ts|tsx)": "<rootDir>/node_modules/ts-jest/preprocessor.js"
     },
-    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
+    "testRegex": "(.spec)\\.(ts|tsx)$",
     "testPathIgnorePatterns": ["/node_modules/", "/distribution/"],
-    "moduleFileExtensions": ["js", "jsx", "json", "ts", "tsx"]
+    "moduleFileExtensions": ["js", "jsx", "json", "ts", "tsx"],
+    "cacheDirectory": ".jest/cache"
   },
   "lint-staged": {
     "*.@(ts)": ["prettier --parser typescript --write", "git add"],
-    "*.@(json|js)": ["prettier --write", "git add"]
+    "*.@(json|js)": ["prettier --write", "git add"],
+    "*.md": ["yarn prettier --write", "git add"]
   }
 }

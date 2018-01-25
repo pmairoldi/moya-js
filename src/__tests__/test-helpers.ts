@@ -1,68 +1,97 @@
 import { TargetType } from "../target-type";
+import { Method } from "../method";
+import { Task, RequestPlainTask } from "../task";
+import { Equatable } from "../util/equatable";
+import { EndpointSampleNetworkError, Endpoint } from "../endpoint";
 
 // MARK: - Mock Services
-export enum GitHubEnum {
+enum GitHubEnum {
   Zen,
   UserProfile
 }
 
-export type GitHubType = { type: GitHubEnum.Zen } | { type: GitHubEnum.UserProfile; userId: string };
+interface Zen {
+  readonly type: GitHubEnum.Zen;
+}
 
-// class GitHub implements TargetType {
+interface UserProfile {
+  readonly type: GitHubEnum.UserProfile;
+  readonly userId: string;
+}
 
-//     get baseURL(): URL { return new URL("https://api.github.com"); }
-//     get path(): string {
-//         switch () {
-//         case GitHubType.zen:
-//             return "/zen"
-//         case .userProfile(let name):
-//             return `/users/${name.urlEscaped)}`
-//             default:
-//             throw new Error("invalid path");
-//         }
-//     }
+type GitHubType = Zen | UserProfile;
 
-//     get method(): Method {
-//         return Method.Get
-//     }
+export class GitHub implements TargetType, Equatable<GitHub> {
+  static get zen(): GitHub {
+    return new GitHub({ type: GitHubEnum.Zen });
+  }
 
-//     get task(): Task {
-//         return TaskType.requestPlain
-//     }
+  static userProfile(userId: string): GitHub {
+    return new GitHub({ type: GitHubEnum.UserProfile, userId: userId });
+  }
 
-//     get sampleData(): Blob {
-//         switch self {
-//         case .zen:
-//             return "Half measures are as bad as nothing at all.".data(using: String.Encoding.utf8)!
-//         case .userProfile(let name):
-//             return "{\"login\": \"\(name)\", \"id\": 100}".data(using: String.Encoding.utf8)!
-//         }
-//     }
+  private constructor(private endpoint: GitHubType) {}
 
-//     get headers(): [String: String]? {
-//         return nil
-//     }
-// }
+  get baseURL(): URL {
+    return new URL("https://api.github.com");
+  }
 
-// extension GitHub: Equatable {
+  get path(): string {
+    switch (this.endpoint.type) {
+      case GitHubEnum.Zen:
+        return "/zen";
+      case GitHubEnum.UserProfile:
+        return `/users/${encodeURIComponent(this.endpoint.userId)}`;
+    }
+  }
 
-//     static func ==(lhs: GitHub, rhs: GitHub) -> Bool {
-//         switch (lhs, rhs) {
-//         case (.zen, .zen): return true
-//         case let (.userProfile(username1), .userProfile(username2)): return username1 == username2
-//         default: return false
-//         }
-//     }
-// }
+  get method(): Method {
+    return Method.Get;
+  }
 
-// func url(_ route: TargetType) -> String {
-//     return route.baseURL.appendingPathComponent(route.path).absoluteString
-// }
+  get sampleData(): Blob {
+    switch (this.endpoint.type) {
+      case GitHubEnum.Zen:
+        return new Blob(["Half measures are as bad as nothing at all."], { type: "text/plain;charset=utf-8" });
+      case GitHubEnum.UserProfile:
+        return new Blob(['{"login": "(name)", "id": 100}'], { type: "text/plain;charset=utf-8" });
+    }
+  }
 
-// let failureEndpointClosure = { (target: GitHub) -> Endpoint<GitHub> in
-//     let error = NSError(domain: "com.moya.moyaerror", code: 0, userInfo: [NSLocalizedDescriptionKey: "Houston, we have a problem"])
-//     return Endpoint<GitHub>(url: url(target), sampleResponseClosure: {.networkError(error)}, method: target.method, task: target.task, httpHeaderFields: target.headers)
-// }
+  get task(): Task {
+    return new RequestPlainTask();
+  }
+
+  get headers(): Map<string, string> | undefined {
+    return undefined;
+  }
+
+  equals(other: GitHub): boolean {
+    switch ((this.endpoint.type, other.endpoint.type)) {
+      case (GitHubEnum.Zen, GitHubEnum.Zen):
+        return true;
+      case (GitHubEnum.UserProfile, GitHubEnum.UserProfile):
+        return (this.endpoint as UserProfile).userId === (other.endpoint as UserProfile).userId;
+      default:
+        return false;
+    }
+  }
+}
+
+export function url(route: TargetType): string {
+  return new URL(route.path, route.baseURL.toString()).toString();
+}
+
+export function failureEndpointClosure(target: GitHub): Endpoint<GitHub> {
+  let error = new Error("Houston, we have a problem");
+  return new Endpoint<GitHub>(
+    url(target),
+    () => new EndpointSampleNetworkError(error),
+    target.method,
+    target.task,
+    target.headers
+  );
+}
 
 // enum HTTPBin: TargetType {
 //     case basicAuth

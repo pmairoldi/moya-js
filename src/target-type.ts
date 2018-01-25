@@ -13,11 +13,11 @@ export interface TargetType {
   readonly method: Method;
 
   /// Provides stub data for use in testing.
-  readonly sampleData: any; //FIXME: change to proper datatype
+  readonly sampleData: Blob;
 
   // The type of HTTP task to be performed.
   readonly task: Task;
 
   /// The headers to be used in the request.
-  readonly headers: Map<string, string> | null;
+  readonly headers: Map<string, string> | undefined;
 }

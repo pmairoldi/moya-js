@@ -1,3 +1,3 @@
 export interface Equatable<T> {
-  equals(lhs: T, rhs: T): boolean;
+  equals(other: T): boolean;
 }
