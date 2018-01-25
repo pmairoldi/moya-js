@@ -1,26 +1,28 @@
-// /// Protocol to define the opaque type returned from a request.
-// public protocol Cancellable {
+/// Protocol to define the opaque type returned from a request.
+export interface Cancellable {
+  /// A Boolean value stating whether a request is cancelled.
+  readonly isCancelled: boolean;
 
-//     /// A Boolean value stating whether a request is cancelled.
-//     var isCancelled: Bool { get }
+  /// Cancels the represented request.
+  cancel(): void;
+}
 
-//     /// Cancels the represented request.
-//     func cancel()
-// }
+export class CancellableWrapper implements Cancellable {
+  private innerCancellable: Cancellable = new SimpleCancellable();
 
-// internal class CancellableWrapper: Cancellable {
-//     internal var innerCancellable: Cancellable = SimpleCancellable()
+  get isCancelled(): boolean {
+    return this.innerCancellable.isCancelled;
+  }
 
-//     var isCancelled: Bool { return innerCancellable.isCancelled }
+  cancel() {
+    this.innerCancellable.cancel();
+  }
+}
 
-//     internal func cancel() {
-//         innerCancellable.cancel()
-//     }
-// }
+class SimpleCancellable implements Cancellable {
+  isCancelled = false;
 
-// internal class SimpleCancellable: Cancellable {
-//     var isCancelled = false
-//     func cancel() {
-//         isCancelled = true
-//     }
-// }
+  cancel() {
+    this.isCancelled = true;
+  }
+}

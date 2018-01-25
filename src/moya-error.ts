@@ -1,80 +1,114 @@
-enum ErrorType {}
+import { MoyaResponse } from "./moya-response";
 
-export type MoyaError = Error;
+/// A type representing possible errors Moya can throw.
+export enum MoyaErrorType {
+  /// Indicates a response failed to map to an image.
+  ImageMapping,
 
-// import Foundation
+  /// Indicates a response failed to map to a JSON structure.
+  JsonMapping,
 
-// /// A type representing possible errors Moya can throw.
-// public enum MoyaError: Swift.Error {
+  /// Indicates a response failed to map to a String.
+  StringMapping,
 
-//     /// Indicates a response failed to map to an image.
-//     case imageMapping(Response)
+  /// Indicates a response failed with an invalid HTTP status code.
+  StatusCode,
 
-//     /// Indicates a response failed to map to a JSON structure.
-//     case jsonMapping(Response)
+  /// Indicates a response failed due to an underlying `Error`.
+  Underlying,
 
-//     /// Indicates a response failed to map to a String.
-//     case stringMapping(Response)
+  /// Indicates that an `Endpoint` failed to map to a `Request`.
+  RequestMapping,
 
-//     /// Indicates a response failed to map to a Decodable object.
-//     case objectMapping(Swift.Error, Response)
+  /// Indicates that an `Endpoint` failed to encode the parameters for the `Request`.
+  ParameterEncoding
+}
 
-//     /// Indicates that Encodable couldn't be encoded into Data
-//     case encodableMapping(Swift.Error)
+export class ImageMappingError extends Error {
+  readonly type: MoyaErrorType.ImageMapping;
 
-//     /// Indicates a response failed with an invalid HTTP status code.
-//     case statusCode(Response)
+  constructor(public response: MoyaResponse) {
+    super("Failed to map data to an Image.");
+  }
+}
 
-//     /// Indicates a response failed due to an underlying `Error`.
-//     case underlying(Swift.Error, Response?)
+export class JsonMappingError extends Error {
+  readonly type: MoyaErrorType.JsonMapping;
 
-//     /// Indicates that an `Endpoint` failed to map to a `URLRequest`.
-//     case requestMapping(String)
+  constructor(public response: MoyaResponse) {
+    super("Failed to map data to JSON.");
+  }
+}
 
-//     /// Indicates that an `Endpoint` failed to encode the parameters for the `URLRequest`.
-//     case parameterEncoding(Swift.Error)
-// }
+export class StringMappingError extends Error {
+  readonly type: MoyaErrorType.StringMapping;
 
-// public extension MoyaError {
-//     /// Depending on error type, returns a `Response` object.
-//     var response: Moya.Response? {
-//         switch self {
-//         case .imageMapping(let response): return response
-//         case .jsonMapping(let response): return response
-//         case .stringMapping(let response): return response
-//         case .objectMapping(_, let response): return response
-//         case .statusCode(let response): return response
-//         case .underlying(_, let response): return response
-//         case .encodableMapping: return nil
-//         case .requestMapping: return nil
-//         case .parameterEncoding: return nil
-//         }
-//     }
-// }
+  constructor(public response: MoyaResponse) {
+    super("Failed to map data to a String.");
+  }
+}
 
-// // MARK: - Error Descriptions
+export class StatusCodeError extends Error {
+  readonly type: MoyaErrorType.StatusCode;
 
-// extension MoyaError: LocalizedError {
-//     public var errorDescription: String? {
-//         switch self {
-//         case .imageMapping:
-//             return "Failed to map data to an Image."
-//         case .jsonMapping:
-//             return "Failed to map data to JSON."
-//         case .stringMapping:
-//             return "Failed to map data to a String."
-//         case .objectMapping:
-//             return "Failed to map data to a Decodable object."
-//         case .encodableMapping:
-//             return "Failed to encode Encodable object into data."
-//         case .statusCode:
-//             return "Status code didn't fall within the given range."
-//         case .requestMapping:
-//             return "Failed to map Endpoint to a URLRequest."
-//         case .parameterEncoding(let error):
-//             return "Failed to encode parameters for URLRequest. \(error.localizedDescription)"
-//         case .underlying(let error, _):
-//             return error.localizedDescription
-//         }
-//     }
-// }
+  constructor(public response: MoyaResponse) {
+    super("Status code didn't fall within the given range.");
+  }
+}
+
+export class UnderlyingError extends Error {
+  readonly type: MoyaErrorType.Underlying;
+
+  constructor(public error: Error, public response: MoyaResponse | null) {
+    super(error.message);
+  }
+}
+
+export class RequestMappingError extends Error {
+  readonly type: MoyaErrorType.RequestMapping;
+
+  constructor(public url: string) {
+    super("Failed to map Endpoint to a Request.");
+  }
+}
+
+export class ParameterEncodingError extends Error {
+  readonly type: MoyaErrorType.ParameterEncoding;
+
+  constructor(public error: Error) {
+    super(`Failed to encode parameters for Request. ${error.message}`);
+  }
+}
+
+export type MoyaError =
+  | ImageMappingError
+  | JsonMappingError
+  | StringMappingError
+  | StatusCodeError
+  | UnderlyingError
+  | RequestMappingError
+  | ParameterEncodingError;
+
+export namespace MoyaError {
+  /// Depending on error type, returns a `Response` object.
+  function response(error: MoyaError): MoyaResponse | null {
+    switch (error.type) {
+      case MoyaErrorType.ImageMapping:
+        return error.response;
+      case MoyaErrorType.JsonMapping:
+        return error.response;
+      case MoyaErrorType.StringMapping:
+        return error.response;
+      case MoyaErrorType.StatusCode:
+        return error.response;
+      case MoyaErrorType.Underlying:
+        return error.response;
+      case MoyaErrorType.RequestMapping:
+        return null;
+      case MoyaErrorType.ParameterEncoding:
+        return null;
+      default:
+        return null;
+    }
+  }
+}

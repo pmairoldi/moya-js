@@ -1,4 +1,5 @@
 import { Method } from "./method";
+import { Task } from "./task";
 
 /// The protocol used to define the specifications necessary for a `MoyaProvider`.
 export interface TargetType {
@@ -14,9 +15,9 @@ export interface TargetType {
   /// Provides stub data for use in testing.
   readonly sampleData: any; //FIXME: change to proper datatype
 
-  /// The type of HTTP task to be performed.
-  //  readonly task: Task;
+  // The type of HTTP task to be performed.
+  readonly task: Task;
 
   /// The headers to be used in the request.
-  readonly headers?: { [index: string]: string };
+  readonly headers: Map<string, string> | null;
 }

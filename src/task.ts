@@ -1,38 +1,110 @@
-// import Foundation
+/// Represents an HTTP task.
+export enum TaskType {
+  /// A request with no additional data.
+  RequestPlain,
 
-// /// Represents an HTTP task.
-// public enum Task {
+  /// A requests body set with data.
+  RequestData,
 
-//     /// A request with no additional data.
-//     case requestPlain
+  /// A requests body set with encoded parameters.
+  RequestParameters,
 
-//     /// A requests body set with data.
-//     case requestData(Data)
+  /// A requests body set with data, combined with url parameters.
+  RequestCompositeData,
 
-//     /// A request body set with `Encodable` type
-//     case requestJSONEncodable(Encodable)
+  /// A requests body set with encoded parameters combined with url parameters.
+  RequestCompositeParameters,
 
-//     /// A requests body set with encoded parameters.
-//     case requestParameters(parameters: [String: Any], encoding: ParameterEncoding)
+  /// A file upload task.
+  UploadFile,
 
-//     /// A requests body set with data, combined with url parameters.
-//     case requestCompositeData(bodyData: Data, urlParameters: [String: Any])
+  /// A "multipart/form-data" upload task.
+  UploadMultipart,
 
-//     /// A requests body set with encoded parameters combined with url parameters.
-//     case requestCompositeParameters(bodyParameters: [String: Any], bodyEncoding: ParameterEncoding, urlParameters: [String: Any])
+  /// A "multipart/form-data" upload task  combined with url parameters.
+  UploadCompositeMultipart,
 
-//     /// A file upload task.
-//     case uploadFile(URL)
+  /// A file download task to a destination.
+  DownloadDestination,
 
-//     /// A "multipart/form-data" upload task.
-//     case uploadMultipart([MultipartFormData])
+  /// A file download task to a destination with extra parameters using the given encoding.
+  DownloadParameters
+}
 
-//     /// A "multipart/form-data" upload task  combined with url parameters.
-//     case uploadCompositeMultipart([MultipartFormData], urlParameters: [String: Any])
+export class RequestPlainTask {
+  readonly type: TaskType.RequestPlain;
+}
 
-//     /// A file download task to a destination.
-//     case downloadDestination(DownloadDestination)
+export class RequestDataTask {
+  readonly type: TaskType.RequestData;
 
-//     /// A file download task to a destination with extra parameters using the given encoding.
-//     case downloadParameters(parameters: [String: Any], encoding: ParameterEncoding, destination: DownloadDestination)
-// }
+  constructor(public data: Blob) {}
+}
+
+export class RequestParameters {
+  readonly type: TaskType.RequestParameters;
+
+  constructor(public parameters: Map<string, any>, public encoding: ParameterEncoding) {}
+}
+
+export class RequestCompositeDataTask {
+  readonly type: TaskType.RequestCompositeData;
+
+  constructor(public bodyData: Blob, public urlParameters: Map<string, any>) {}
+}
+
+export class RequestCompositeParametersTask {
+  readonly type: TaskType.RequestCompositeParameters;
+
+  constructor(
+    public bodyParameters: Map<string, any>,
+    public bodyEncoding: ParameterEncoding,
+    public urlParameters: Map<string, any>
+  ) {}
+}
+
+export class UploadFileTask {
+  readonly type: TaskType.UploadFile;
+
+  constructor(public url: URL) {}
+}
+
+export class UploadMultipartTask {
+  readonly type: TaskType.UploadMultipart;
+
+  constructor(public parts: [MultipartFormData]) {}
+}
+
+export class UploadCompositeMultipartTask {
+  readonly type: TaskType.UploadCompositeMultipart;
+
+  constructor(public parts: [MultipartFormData], public urlParameters: Map<string, any>) {}
+}
+
+export class DownloadDestinationTask {
+  readonly type: TaskType.DownloadDestination;
+
+  constructor(public destination: DownloadDestination) {}
+}
+
+export class DownloadParametersTask {
+  readonly type: TaskType.DownloadParameters;
+
+  constructor(
+    public parameters: Map<string, any>,
+    public encoding: ParameterEncoding,
+    public destination: DownloadDestination
+  ) {}
+}
+
+export type Task =
+  | RequestPlainTask
+  | RequestDataTask
+  | RequestParameters
+  | RequestCompositeDataTask
+  | RequestCompositeParametersTask
+  | UploadFileTask
+  | UploadMultipartTask
+  | UploadCompositeMultipartTask
+  | DownloadDestinationTask
+  | DownloadParametersTask;

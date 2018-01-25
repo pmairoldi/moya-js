@@ -1,47 +1,41 @@
-// import Foundation
-// import Result
+import { MoyaError } from "./moya-error";
+import { TargetType } from "./target-type";
+import { Result } from "./util/result";
+import { MoyaResponse } from "./moya-response";
 
-// /// A Moya Plugin receives callbacks to perform side effects wherever a request is sent or received.
-// ///
-// /// for example, a plugin may be used to
-// ///     - log network requests
-// ///     - hide and show a network activity indicator
-// ///     - inject additional information into a request
-// public protocol PluginType {
-//     /// Called to modify a request before sending.
-//     func prepare(_ request: URLRequest, target: TargetType) -> URLRequest
+/// A Moya Plugin receives callbacks to perform side effects wherever a request is sent or received.
+///
+/// for example, a plugin may be used to
+///     - log network requests
+///     - hide and show a network activity indicator
+///     - inject additional information into a request
+export interface PluginType {
+  /// Called to modify a request before sending.
+  prepare?(request: Request, target: TargetType): Request;
 
-//     /// Called immediately before a request is sent over the network (or stubbed).
-//     func willSend(_ request: RequestType, target: TargetType)
+  /// Called immediately before a request is sent over the network (or stubbed).
+  willSend?(request: RequestType, target: TargetType): void;
 
-//     /// Called after a response has been received, but before the MoyaProvider has invoked its completion handler.
-//     func didReceive(_ result: Result<Moya.Response, MoyaError>, target: TargetType)
+  /// Called after a response has been received, but before the MoyaProvider has invoked its completion handler.
+  didReceive?(result: Result<MoyaResponse, MoyaError>, target: TargetType): void;
 
-//     /// Called to modify a result before completion.
-//     func process(_ result: Result<Moya.Response, MoyaError>, target: TargetType) -> Result<Moya.Response, MoyaError>
-// }
+  /// Called to modify a result before completion.
+  process?(result: Result<MoyaResponse, MoyaError>, target: TargetType): Result<MoyaResponse, MoyaError>;
+}
 
-// public extension PluginType {
-//     func prepare(_ request: URLRequest, target: TargetType) -> URLRequest { return request }
-//     func willSend(_ request: RequestType, target: TargetType) { }
-//     func didReceive(_ result: Result<Moya.Response, MoyaError>, target: TargetType) { }
-//     func process(_ result: Result<Moya.Response, MoyaError>, target: TargetType) -> Result<Moya.Response, MoyaError> { return result }
-// }
+/// Request type used by `willSend` plugin function.
+export interface RequestType {
+  // Note:
+  //
+  // We use this protocol instead of the Alamofire request to avoid leaking that abstraction.
+  // A plugin should not know about Alamofire at all.
 
-// /// Request type used by `willSend` plugin function.
-// public protocol RequestType {
+  /// Retrieve an `NSURLRequest` representation.
+  readonly request: Request | null;
 
-//     // Note:
-//     //
-//     // We use this protocol instead of the Alamofire request to avoid leaking that abstraction.
-//     // A plugin should not know about Alamofire at all.
+  /// Authenticates the request with a username and password.
+  // authenticate(user: String, password: String, persistence: URLCredential.Persistence): RequestType;
 
-//     /// Retrieve an `NSURLRequest` representation.
-//     var request: URLRequest? { get }
-
-//     /// Authenticates the request with a username and password.
-//     func authenticate(user: String, password: String, persistence: URLCredential.Persistence) -> Self
-
-//     /// Authenticates the request with an `NSURLCredential` instance.
-//     func authenticate(usingCredential credential: URLCredential) -> Self
-// }
+  /// Authenticates the request with an `NSURLCredential` instance.
+  // authenticate(usingCredential: URLCredential): RequestType;
+}
