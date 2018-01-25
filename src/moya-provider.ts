@@ -1,6 +1,6 @@
 import { TargetType } from "./target-type";
-import { Result } from "./result";
-import { Response } from "./response";
+import { Result } from "./util/result";
+import { MoyaResponse } from "./moya-response";
 import { MoyaError } from "./moya-error";
 
 /// Closure to be executed when a request has completed.

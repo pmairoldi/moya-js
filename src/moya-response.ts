@@ -28,8 +28,8 @@ export class MoyaResponse implements Equatable<MoyaResponse> {
     return `Status Code: ${this.statusCode}, Data Length: ${this.data.size}`;
   }
 
-  equals(lhs: MoyaResponse, rhs: MoyaResponse): boolean {
-    return lhs.statusCode == rhs.statusCode && lhs.data == rhs.data && lhs.response == rhs.response;
+  equals(other: MoyaResponse): boolean {
+    return this.statusCode == other.statusCode && this.data == other.data && this.response == other.response;
   }
 
   // MARK: Extensions
