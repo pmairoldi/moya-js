@@ -1,6 +1,6 @@
 import { Equatable } from "./util/equatable";
 import { ClosedRange } from "./util/closed-range";
-import { MoyaError, StatusCodeError } from "./moya-error";
+import { MoyaError } from "./moya-error";
 
 /// Represents a response to a `MoyaProvider.request`.
 export class MoyaResponse implements Equatable<MoyaResponse> {
@@ -47,7 +47,7 @@ export class MoyaResponse implements Equatable<MoyaResponse> {
     }
 
     if (!statusCode.contains(this.statusCode)) {
-      throw new StatusCodeError(this);
+      throw MoyaError.statusCode(this);
     }
 
     return this;

@@ -2,7 +2,7 @@ import { TargetType } from "../target-type";
 import { Method } from "../method";
 import { Task, RequestPlainTask } from "../task";
 import { Equatable } from "../util/equatable";
-import { EndpointSampleNetworkError, Endpoint } from "../endpoint";
+import { Endpoint, EndpointSampleResponse } from "../endpoint";
 
 // MARK: - Mock Services
 enum GitHubEnum {
@@ -86,7 +86,7 @@ export function failureEndpointClosure(target: GitHub): Endpoint<GitHub> {
   let error = new Error("Houston, we have a problem");
   return new Endpoint<GitHub>(
     url(target),
-    () => new EndpointSampleNetworkError(error),
+    () => EndpointSampleResponse.networkError(error),
     target.method,
     target.task,
     target.headers

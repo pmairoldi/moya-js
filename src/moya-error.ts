@@ -1,7 +1,7 @@
 import { MoyaResponse } from "./moya-response";
 
 /// A type representing possible errors Moya can throw.
-export enum MoyaErrorType {
+export enum MoyaErrorEnum {
   /// Indicates a response failed to map to an image.
   ImageMapping,
 
@@ -25,62 +25,62 @@ export enum MoyaErrorType {
 }
 
 export class ImageMappingError extends Error {
-  readonly type: MoyaErrorType.ImageMapping;
+  readonly type = MoyaErrorEnum.ImageMapping;
 
-  constructor(public response: MoyaResponse) {
+  constructor(public readonly response: MoyaResponse) {
     super("Failed to map data to an Image.");
   }
 }
 
 export class JsonMappingError extends Error {
-  readonly type: MoyaErrorType.JsonMapping;
+  readonly type = MoyaErrorEnum.JsonMapping;
 
-  constructor(public response: MoyaResponse) {
+  constructor(public readonly response: MoyaResponse) {
     super("Failed to map data to JSON.");
   }
 }
 
 export class StringMappingError extends Error {
-  readonly type: MoyaErrorType.StringMapping;
+  readonly type = MoyaErrorEnum.StringMapping;
 
-  constructor(public response: MoyaResponse) {
+  constructor(public readonly response: MoyaResponse) {
     super("Failed to map data to a String.");
   }
 }
 
 export class StatusCodeError extends Error {
-  readonly type: MoyaErrorType.StatusCode;
+  readonly type = MoyaErrorEnum.StatusCode;
 
-  constructor(public response: MoyaResponse) {
+  constructor(public readonly response: MoyaResponse) {
     super("Status code didn't fall within the given range.");
   }
 }
 
 export class UnderlyingError extends Error {
-  readonly type: MoyaErrorType.Underlying;
+  readonly type = MoyaErrorEnum.Underlying;
 
-  constructor(public error: Error, public response: MoyaResponse | null) {
+  constructor(public readonly error: Error, public readonly response: MoyaResponse | null) {
     super(error.message);
   }
 }
 
 export class RequestMappingError extends Error {
-  readonly type: MoyaErrorType.RequestMapping;
+  readonly type = MoyaErrorEnum.RequestMapping;
 
-  constructor(public url: string) {
+  constructor(public readonly url: string) {
     super("Failed to map Endpoint to a Request.");
   }
 }
 
 export class ParameterEncodingError extends Error {
-  readonly type: MoyaErrorType.ParameterEncoding;
+  readonly type = MoyaErrorEnum.ParameterEncoding;
 
-  constructor(public error: Error) {
+  constructor(public readonly error: Error) {
     super(`Failed to encode parameters for Request. ${error.message}`);
   }
 }
 
-export type MoyaError =
+export type MoyaErrorType =
   | ImageMappingError
   | JsonMappingError
   | StringMappingError
@@ -89,23 +89,69 @@ export type MoyaError =
   | RequestMappingError
   | ParameterEncodingError;
 
-export namespace MoyaError {
+export class MoyaError implements Error {
+  static imageMapping(response: MoyaResponse): MoyaError {
+    return new MoyaError(new ImageMappingError(response));
+  }
+
+  static jsonMapping(response: MoyaResponse): MoyaError {
+    return new MoyaError(new JsonMappingError(response));
+  }
+
+  static stringMapping(response: MoyaResponse): MoyaError {
+    return new MoyaError(new StringMappingError(response));
+  }
+
+  static statusCode(response: MoyaResponse): MoyaError {
+    return new MoyaError(new StatusCodeError(response));
+  }
+
+  static underlying(error: Error, response: MoyaResponse | null): MoyaError {
+    return new MoyaError(new UnderlyingError(error, response));
+  }
+
+  static requestMapping(url: string): MoyaError {
+    return new MoyaError(new RequestMappingError(url));
+  }
+
+  static parameterEncoding(error: Error): MoyaError {
+    return new MoyaError(new ParameterEncodingError(error));
+  }
+
+  private constructor(private error: MoyaErrorType) {}
+
+  get type(): MoyaErrorType {
+    return this.error;
+  }
+
+  get name(): string {
+    return this.error.name;
+  }
+
+  get message(): string {
+    return this.error.message;
+  }
+
+  get stack(): string | undefined {
+    return this.error.stack;
+  }
+
   /// Depending on error type, returns a `Response` object.
-  function response(error: MoyaError): MoyaResponse | null {
-    switch (error.type) {
-      case MoyaErrorType.ImageMapping:
-        return error.response;
-      case MoyaErrorType.JsonMapping:
-        return error.response;
-      case MoyaErrorType.StringMapping:
-        return error.response;
-      case MoyaErrorType.StatusCode:
-        return error.response;
-      case MoyaErrorType.Underlying:
-        return error.response;
-      case MoyaErrorType.RequestMapping:
+  get response(): MoyaResponse | null {
+    switch (this.error.type) {
+      case MoyaErrorEnum.ImageMapping:
+        return this.error.response;
+      case MoyaErrorEnum.JsonMapping:
+        return this.error.response;
+      case MoyaErrorEnum.StringMapping:
+        return this.error.response;
+      case MoyaErrorEnum.StatusCode:
+        return this.error.response;
+      case MoyaErrorEnum.Underlying:
+        return this.error.response;
+      case MoyaErrorEnum.RequestMapping:
         return null;
-      case MoyaErrorType.ParameterEncoding:
+      case MoyaErrorEnum.ParameterEncoding:
         return null;
       default:
         return null;

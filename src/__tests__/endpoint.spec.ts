@@ -1,9 +1,9 @@
-import { Endpoint, EndpointSampleNetworkResponse } from "../endpoint";
+import { Endpoint, EndpointSampleResponse } from "../endpoint";
 import { GitHub, url } from "./test-helpers";
 import { RequestPlainTask, Task } from "../task";
 import { Method } from "../method";
 import { TargetType } from "../target-type";
-import { RequestMappingError } from "../moya-error";
+import { MoyaError } from "../moya-error";
 
 // final class NonUpdatingRequestEndpointConfiguration: QuickConfiguration {
 //     override static func configure(_ configuration: Configuration) {
@@ -52,7 +52,7 @@ function simpleGitHubEndpoint(): Endpoint<GitHub> {
 
   return new Endpoint<GitHub>(
     url(target),
-    () => new EndpointSampleNetworkResponse(200, target.sampleData),
+    () => EndpointSampleResponse.networkResponse(200, target.sampleData),
     Method.Get,
     new RequestPlainTask(),
     headerFields
@@ -88,13 +88,13 @@ describe("EndpointSpec", () => {
     let badUrl = "some invalid URL";
     let badEndpoint = new Endpoint<Empty>(
       badUrl,
-      () => new EndpointSampleNetworkResponse(200, new Blob()),
+      () => EndpointSampleResponse.networkResponse(200, new Blob()),
       Method.Get,
       new RequestPlainTask(),
       undefined
     );
 
-    expect(() => badEndpoint.urlRequest()).toThrowError(new RequestMappingError(badUrl).message);
+    expect(() => badEndpoint.urlRequest()).toThrowError(MoyaError.requestMapping(badUrl).message);
   });
 
   // describe("successful converting to urlRequest") {

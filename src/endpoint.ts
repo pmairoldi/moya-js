@@ -1,9 +1,9 @@
 import { Method } from "./method";
 import { Task, TaskType } from "./task";
-import { RequestMappingError } from "./moya-error";
+import { MoyaError } from "./moya-error";
 
 /// Used for stubbing responses.
-export enum EndpointSampleResponseType {
+enum EndpointSampleResponseEnum {
   /// The network returned a response, including status code and data.
   NetworkResponse,
 
@@ -14,28 +14,54 @@ export enum EndpointSampleResponseType {
   NetworkError
 }
 
-export class EndpointSampleNetworkResponse {
-  readonly type: EndpointSampleResponseType.NetworkResponse;
-
-  constructor(public statusCode: number, data: Blob) {}
+interface EndpointSampleNetworkResponse {
+  readonly type: EndpointSampleResponseEnum.NetworkResponse;
+  readonly statusCode: number;
+  readonly data: Blob;
 }
 
-export class EndpointSampleHttpResponse {
-  readonly type: EndpointSampleResponseType.Response;
-
-  constructor(public response: Response, data: Blob) {}
+interface EndpointSampleHttpResponse {
+  readonly type: EndpointSampleResponseEnum.Response;
+  readonly response: Response;
+  readonly data: Blob;
 }
 
-export class EndpointSampleNetworkError {
-  readonly type: EndpointSampleResponseType.NetworkError;
-
-  constructor(public error: Error) {}
+interface EndpointSampleNetworkError {
+  readonly type: EndpointSampleResponseEnum.NetworkError;
+  readonly error: Error;
 }
 
-export type EndpointSampleResponse =
+type EndpointSampleResponseType =
   | EndpointSampleNetworkResponse
   | EndpointSampleHttpResponse
   | EndpointSampleNetworkError;
+
+export class EndpointSampleResponse {
+  static networkResponse(statusCode: number, data: Blob): EndpointSampleResponse {
+    return new EndpointSampleResponse({
+      type: EndpointSampleResponseEnum.NetworkResponse,
+      statusCode: statusCode,
+      data: data
+    });
+  }
+
+  static response(response: Response, data: Blob): EndpointSampleResponse {
+    return new EndpointSampleResponse({
+      type: EndpointSampleResponseEnum.Response,
+      response: response,
+      data: data
+    });
+  }
+
+  static networkError(error: Error): EndpointSampleResponse {
+    return new EndpointSampleResponse({
+      type: EndpointSampleResponseEnum.NetworkError,
+      error: error
+    });
+  }
+
+  private constructor(private endpointSample: EndpointSampleResponseType) {}
+}
 
 export type SampleResponseClosure = () => EndpointSampleResponse;
 
@@ -101,7 +127,7 @@ export class Endpoint<Target> {
     try {
       requestURL = new URL(this.url);
     } catch {
-      throw new RequestMappingError(this.url);
+      throw MoyaError.requestMapping(this.url);
     }
 
     var requestConfig: RequestInit = {
@@ -118,9 +144,9 @@ export class Endpoint<Target> {
       case TaskType.UploadMultipart:
       case TaskType.DownloadDestination:
         break;
-      //   case TaskType.RequestData:
-      //     requestConfig.body = this.task.data;
-      //     break;
+      case TaskType.RequestData:
+        requestConfig.body = this.task.data;
+        break;
       //   case TaskType.RequestParameters:
       //       return try request.encoded(parameters: parameters, parameterEncoding: parameterEncoding)
       //       break;

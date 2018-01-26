@@ -1,209 +1,232 @@
 import { TargetType } from "./target-type";
-import { Result } from "./util/result";
+import { Result, Failure, Success } from "./util/result";
 import { MoyaResponse } from "./moya-response";
-import { MoyaError } from "./moya-error";
+import { MoyaError, MoyaErrorEnum } from "./moya-error";
+import { Cancellable } from "./cancellable";
+import { Endpoint, EndpointSampleResponse } from "./endpoint";
+import { PluginType } from "./plugin";
 
 /// Closure to be executed when a request has completed.
 export type Completion = (result: Result<Response, MoyaError>) => void;
+
+/// Closure to be executed when progress changes.
+export type ProgressBlock = (progress: ProgressResponse) => void;
+
+/// A type representing the progress of a request.
+export class ProgressResponse {
+  /// The optional response of the request.
+  response?: Response;
+
+  /// An object that conveys ongoing progress for a given request.
+  // progressObject?: Progress
+  progressObject?: number;
+
+  /// Initializes a `ProgressResponse`.
+  constructor(progress?: number, response?: Response) {
+    this.progressObject = progress;
+    this.response = response;
+  }
+
+  /// The fraction of the overall work completed by the progress object.
+  get progress(): number {
+    return this.progressObject === undefined ? 1.0 : this.progressObject;
+  }
+
+  /// A Boolean value stating whether the request is completed.
+  get completed(): boolean {
+    return this.progress == 1.0 && this.response !== undefined;
+  }
+}
 
 /// A protocol representing a minimal interface for a MoyaProvider.
 /// Used by the reactive provider extensions.
 export interface MoyaProviderType<Target extends TargetType> {
   /// Designated request-making method. Returns a `Cancellable` token to cancel the request later.
-  request(target: Target, completion: Completion): void;
+  request(target: Target, completion: Completion, progress?: ProgressBlock): Cancellable;
 }
+
+/// Closure that defines the endpoints for the provider.
+export type EndpointClosure<Target extends TargetType> = (target: Target) => Endpoint<Target>;
+
+/// Closure that decides if and what request should be performed.
+export type RequestResultClosure<Target extends TargetType> = (reault: Result<Request, MoyaError>) => void;
+
+/// Closure that resolves an `Endpoint` into a `RequestResult`.
+export type RequestClosure<Target extends TargetType> = (
+  endpoint: Endpoint<Target>,
+  closure: RequestResultClosure<Target>
+) => void;
+
+/// Closure that decides if/how a request should be stubbed.
+export type StubClosure<Target extends TargetType> = (target: Target) => StubBehavior;
 
 /// Request provider class. Requests should be made through this class only.
 export class MoyaProvider<Target extends TargetType> implements MoyaProviderType<Target> {
-  request(target: Target, completion: Completion) {}
+  /// A closure responsible for mapping a `TargetType` to an `EndPoint`.
+  readonly endpointClosure: EndpointClosure<Target>;
+
+  /// A closure deciding if and what request should be performed.
+  readonly requestClosure: RequestClosure<Target>;
+
+  /// A closure responsible for determining the stubbing behavior
+  /// of a request for a given `TargetType`.
+  readonly stubClosure: StubClosure<Target>;
+
+  /// The manager for the session.
+  // readonly manager: Manager
+
+  /// A list of plugins.
+  /// e.g. for logging, network activity indicator or credentials.
+  readonly plugins: [PluginType];
+
+  readonly trackInflights: boolean;
+
+  private _inflightRequests: Map<Endpoint<Target>, [Completion]> = new Map();
+  set inflightRequests(value: Map<Endpoint<Target>, [Completion]>) {
+    this._inflightRequests = value;
+  }
+
+  /// Initializes a provider.
+  constructor(
+    endpointClosure: EndpointClosure<Target> = MoyaProvider.defaultEndpointMapping,
+    requestClosure: RequestClosure<Target> = MoyaProvider.defaultRequestMapping,
+    stubClosure: StubClosure<Target> = MoyaProvider.neverStub,
+    // manager: Manager = MoyaProvider<Target>.defaultAlamofireManager(),
+    plugins: [PluginType] = [],
+    trackInflights: boolean = false
+  ) {
+    this.endpointClosure = endpointClosure;
+    this.requestClosure = requestClosure;
+    this.stubClosure = stubClosure;
+    // this.manager = manager
+    this.plugins = plugins;
+    this.trackInflights = trackInflights;
+  }
+
+  /// Returns an `Endpoint` based on the token, method, and parameters by invoking the `endpointClosure`.
+  endpoint(token: Target): Endpoint<Target> {
+    return this.endpointClosure(token);
+  }
+
+  /// Designated request-making method. Returns a `Cancellable` token to cancel the request later.
+  request(target: Target, progress: ProgressBlock | null = null, completion: Completion): Cancellable {
+    return this.requestNormal(target, progress, completion);
+  }
+
+  /// When overriding this method, take care to `notifyPluginsOfImpendingStub` and to perform the stub using the `createStubFunction` method.
+  /// Note: this was previously in an extension, however it must be in the original class declaration to allow subclasses to override.
+  stubRequest(
+    target: Target,
+    request: Request,
+    completion: Completion,
+    endpoint: Endpoint<Target>,
+    stubBehavior: StubBehavior
+  ): CancellableToken {
+    let cancellableToken = new CancellableToken();
+    // notifyPluginsOfImpendingStub(for: request, target: target)
+    // let plugins = self.plugins
+    // let stub: () -> Void = createStubFunction(cancellableToken, forTarget: target, withCompletion: completion, endpoint: endpoint, plugins: plugins, request: request)
+    // switch stubBehavior {
+    // case .immediate:
+    //     switch callbackQueue {
+    //     case .none:
+    //         stub()
+    //     case .some(let callbackQueue):
+    //         callbackQueue.async(execute: stub)
+    //     }
+    // case .delayed(let delay):
+    //     let killTimeOffset = Int64(CDouble(delay) * CDouble(NSEC_PER_SEC))
+    //     let killTime = DispatchTime.now() + Double(killTimeOffset) / Double(NSEC_PER_SEC)
+    //     (callbackQueue ?? DispatchQueue.main).asyncAfter(deadline: killTime) {
+    //         stub()
+    //     }
+    // case .never:
+    //     fatalError("Method called to stub request when stubbing is disabled.")
+    // }
+    return cancellableToken;
+  }
+
+  static defaultEndpointMapping<Target extends TargetType>(target: Target): Endpoint<Target> {
+    return new Endpoint(
+      new URL(target.path, target.baseURL.toString()).toString(),
+      () => EndpointSampleResponse.networkResponse(200, target.sampleData),
+      target.method,
+      target.task,
+      target.headers
+    );
+  }
+
+  static defaultRequestMapping<Target extends TargetType>(
+    endpoint: Endpoint<Target>,
+    closure: RequestResultClosure<Target>
+  ) {
+    try {
+      let urlRequest = endpoint.urlRequest();
+      closure(new Success(urlRequest));
+    } catch (error) {
+      let moyaError = error as MoyaError;
+
+      switch (moyaError.type.type) {
+        case MoyaErrorEnum.RequestMapping:
+          closure(new Failure(MoyaError.requestMapping(moyaError.type.url)));
+          break;
+
+        case MoyaErrorEnum.ParameterEncoding:
+          closure(new Failure(MoyaError.parameterEncoding(moyaError)));
+          break;
+
+        default:
+          closure(new Failure(MoyaError.underlying(moyaError, null)));
+          break;
+      }
+    }
+  }
 }
 
-// import Foundation
-// import Result
+/// Mark: Stubbing
 
-// /// Closure to be executed when a request has completed.
-// public typealias Completion = (_ result: Result<Moya.Response, MoyaError>) -> Void
+/// Controls how stub responses are returned.
+enum StubBehaviorEnum {
+  /// Do not stub.
+  never,
 
-// /// Closure to be executed when progress changes.
-// public typealias ProgressBlock = (_ progress: ProgressResponse) -> Void
+  /// Return a response immediately.
+  immediate,
 
-// /// A type representing the progress of a request.
-// public struct ProgressResponse {
+  /// Return a response after a delay.
+  delayed //(seconds: TimeInterval)
+}
 
-//     /// The optional response of the request.
-//     public let response: Response?
+interface NeverStubBehavior {
+  readonly type: StubBehaviorEnum.never;
+}
 
-//     /// An object that conveys ongoing progress for a given request.
-//     public let progressObject: Progress?
+interface ImmediateStubBehavior {
+  readonly type: StubBehaviorEnum.immediate;
+}
 
-//     /// Initializes a `ProgressResponse`.
-//     public init(progress: Progress? = nil, response: Response? = nil) {
-//         self.progressObject = progress
-//         self.response = response
-//     }
+interface DelayedStubBehavior {
+  readonly type: StubBehaviorEnum.delayed;
+  readonly seconds: number;
+}
 
-//     /// The fraction of the overall work completed by the progress object.
-//     public var progress: Double {
-//         return progressObject?.fractionCompleted ?? 1.0
-//     }
+type StubBehaviorType = NeverStubBehavior | ImmediateStubBehavior | DelayedStubBehavior;
 
-//     /// A Boolean value stating whether the request is completed.
-//     public var completed: Bool {
-//         return progress == 1.0 && response != nil
-//     }
-// }
+export class StubBehavior {
+  static get never(): StubBehavior {
+    return new StubBehavior({ type: StubBehaviorEnum.never });
+  }
 
-// /// A protocol representing a minimal interface for a MoyaProvider.
-// /// Used by the reactive provider extensions.
-// public protocol MoyaProviderType: AnyObject {
+  static get immediate(): StubBehavior {
+    return new StubBehavior({ type: StubBehaviorEnum.immediate });
+  }
 
-//     associatedtype Target: TargetType
+  static delayed(seconds: number): StubBehavior {
+    return new StubBehavior({ type: StubBehaviorEnum.delayed, seconds: seconds });
+  }
 
-//     /// Designated request-making method. Returns a `Cancellable` token to cancel the request later.
-//     func request(_ target: Target, callbackQueue: DispatchQueue?, progress: Moya.ProgressBlock?, completion: @escaping Moya.Completion) -> Cancellable
-// }
-
-// /// Request provider class. Requests should be made through this class only.
-// open class MoyaProvider<Target: TargetType>: MoyaProviderType {
-
-//     /// Closure that defines the endpoints for the provider.
-//     public typealias EndpointClosure = (Target) -> Endpoint<Target>
-
-//     /// Closure that decides if and what request should be performed.
-//     public typealias RequestResultClosure = (Result<URLRequest, MoyaError>) -> Void
-
-//     /// Closure that resolves an `Endpoint` into a `RequestResult`.
-//     public typealias RequestClosure = (Endpoint<Target>, @escaping RequestResultClosure) -> Void
-
-//     /// Closure that decides if/how a request should be stubbed.
-//     public typealias StubClosure = (Target) -> Moya.StubBehavior
-
-//     /// A closure responsible for mapping a `TargetType` to an `EndPoint`.
-//     open let endpointClosure: EndpointClosure
-
-//     /// A closure deciding if and what request should be performed.
-//     open let requestClosure: RequestClosure
-
-//     /// A closure responsible for determining the stubbing behavior
-//     /// of a request for a given `TargetType`.
-//     open let stubClosure: StubClosure
-
-//     /// The manager for the session.
-//     open let manager: Manager
-
-//     /// A list of plugins.
-//     /// e.g. for logging, network activity indicator or credentials.
-//     open let plugins: [PluginType]
-
-//     open let trackInflights: Bool
-
-//     open internal(set) var inflightRequests: [Endpoint<Target>: [Moya.Completion]] = [:]
-
-//     /// Propagated to Alamofire as callback queue. If nil - the Alamofire default (as of their API in 2017 - the main queue) will be used.
-//     let callbackQueue: DispatchQueue?
-
-//     /// Initializes a provider.
-//     public init(endpointClosure: @escaping EndpointClosure = MoyaProvider.defaultEndpointMapping,
-//                 requestClosure: @escaping RequestClosure = MoyaProvider.defaultRequestMapping,
-//                 stubClosure: @escaping StubClosure = MoyaProvider.neverStub,
-//                 callbackQueue: DispatchQueue? = nil,
-//                 manager: Manager = MoyaProvider<Target>.defaultAlamofireManager(),
-//                 plugins: [PluginType] = [],
-//                 trackInflights: Bool = false) {
-
-//         self.endpointClosure = endpointClosure
-//         self.requestClosure = requestClosure
-//         self.stubClosure = stubClosure
-//         self.manager = manager
-//         self.plugins = plugins
-//         self.trackInflights = trackInflights
-//         self.callbackQueue = callbackQueue
-//     }
-
-//     /// Returns an `Endpoint` based on the token, method, and parameters by invoking the `endpointClosure`.
-//     open func endpoint(_ token: Target) -> Endpoint<Target> {
-//         return endpointClosure(token)
-//     }
-
-//     /// Designated request-making method. Returns a `Cancellable` token to cancel the request later.
-//     @discardableResult
-//     open func request(_ target: Target,
-//                       callbackQueue: DispatchQueue? = .none,
-//                       progress: ProgressBlock? = .none,
-//                       completion: @escaping Completion) -> Cancellable {
-
-//         let callbackQueue = callbackQueue ?? self.callbackQueue
-//         return requestNormal(target, callbackQueue: callbackQueue, progress: progress, completion: completion)
-//     }
-
-//     // swiftlint:disable function_parameter_count
-//     /// When overriding this method, take care to `notifyPluginsOfImpendingStub` and to perform the stub using the `createStubFunction` method.
-//     /// Note: this was previously in an extension, however it must be in the original class declaration to allow subclasses to override.
-//     @discardableResult
-//     open func stubRequest(_ target: Target, request: URLRequest, callbackQueue: DispatchQueue?, completion: @escaping Moya.Completion, endpoint: Endpoint<Target>, stubBehavior: Moya.StubBehavior) -> CancellableToken {
-//         let callbackQueue = callbackQueue ?? self.callbackQueue
-//         let cancellableToken = CancellableToken { }
-//         notifyPluginsOfImpendingStub(for: request, target: target)
-//         let plugins = self.plugins
-//         let stub: () -> Void = createStubFunction(cancellableToken, forTarget: target, withCompletion: completion, endpoint: endpoint, plugins: plugins, request: request)
-//         switch stubBehavior {
-//         case .immediate:
-//             switch callbackQueue {
-//             case .none:
-//                 stub()
-//             case .some(let callbackQueue):
-//                 callbackQueue.async(execute: stub)
-//             }
-//         case .delayed(let delay):
-//             let killTimeOffset = Int64(CDouble(delay) * CDouble(NSEC_PER_SEC))
-//             let killTime = DispatchTime.now() + Double(killTimeOffset) / Double(NSEC_PER_SEC)
-//             (callbackQueue ?? DispatchQueue.main).asyncAfter(deadline: killTime) {
-//                 stub()
-//             }
-//         case .never:
-//             fatalError("Method called to stub request when stubbing is disabled.")
-//         }
-
-//         return cancellableToken
-//     }
-//     // swiftlint:enable function_parameter_count
-// }
-
-// /// Mark: Stubbing
-
-// /// Controls how stub responses are returned.
-// public enum StubBehavior {
-
-//     /// Do not stub.
-//     case never
-
-//     /// Return a response immediately.
-//     case immediate
-
-//     /// Return a response after a delay.
-//     case delayed(seconds: TimeInterval)
-// }
-
-// public extension MoyaProvider {
-
-//     // Swift won't let us put the StubBehavior enum inside the provider class, so we'll
-//     // at least add some class functions to allow easy access to common stubbing closures.
-
-//     /// Do not stub.
-//     public final class func neverStub(_: Target) -> Moya.StubBehavior {
-//         return .never
-//     }
-
-//     /// Return a response immediately.
-//     public final class func immediatelyStub(_: Target) -> Moya.StubBehavior {
-//         return .immediate
-//     }
-
-//     /// Return a response after a delay.
-//     public final class func delayedStub(_ seconds: TimeInterval) -> (Target) -> Moya.StubBehavior {
-//         return { _ in return .delayed(seconds: seconds) }
-//     }
-// }
+  private constructor(private type: StubBehaviorType) {}
+}
 
 // /// A public function responsible for converting the result of a `URLRequest` to a Result<Moya.Response, MoyaError>.
 // public func convertResponseToResult(_ response: HTTPURLResponse?, request: URLRequest?, data: Data?, error: Swift.Error?) ->
