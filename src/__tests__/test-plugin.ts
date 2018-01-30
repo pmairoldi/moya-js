@@ -1,6 +1,6 @@
 import { PluginType, RequestType } from "../plugin";
 import { TargetType } from "../target-type";
-import { Result, ResultType, Success } from "../util/result";
+import { Result, ResultEnum, Success } from "../util/result";
 import { MoyaError } from "../moya-error";
 import { MoyaResponse } from "../moya-response";
 
@@ -27,11 +27,11 @@ export class TestingPlugin implements PluginType {
   }
 
   process(result: Result<MoyaResponse, MoyaError>, target: TargetType): Result<MoyaResponse, MoyaError> {
-    switch (result.type) {
-      case ResultType.Success:
-        let response = result.value;
+    switch (result.type.type) {
+      case ResultEnum.Success:
+        let response = result.type.value;
         let processedResponse = new MoyaResponse(-1, response.data, response.request, response.response);
-        result = new Success(processedResponse);
+        result = Result.success(processedResponse);
     }
 
     return result;

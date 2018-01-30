@@ -5,6 +5,7 @@ import { MoyaError, MoyaErrorEnum } from "./moya-error";
 import { Cancellable } from "./cancellable";
 import { Endpoint, EndpointSampleResponse } from "./endpoint";
 import { PluginType } from "./plugin";
+import { CancellableToken } from "./cancellable-token";
 
 /// Closure to be executed when a request has completed.
 export type Completion = (result: Result<Response, MoyaError>) => void;
@@ -77,7 +78,7 @@ export class MoyaProvider<Target extends TargetType> implements MoyaProviderType
 
   /// A list of plugins.
   /// e.g. for logging, network activity indicator or credentials.
-  readonly plugins: [PluginType];
+  readonly plugins: PluginType[];
 
   readonly trackInflights: boolean;
 
@@ -92,7 +93,7 @@ export class MoyaProvider<Target extends TargetType> implements MoyaProviderType
     requestClosure: RequestClosure<Target> = MoyaProvider.defaultRequestMapping,
     stubClosure: StubClosure<Target> = MoyaProvider.neverStub,
     // manager: Manager = MoyaProvider<Target>.defaultAlamofireManager(),
-    plugins: [PluginType] = [],
+    plugins: PluginType[] = [],
     trackInflights: boolean = false
   ) {
     this.endpointClosure = endpointClosure;
@@ -109,7 +110,7 @@ export class MoyaProvider<Target extends TargetType> implements MoyaProviderType
   }
 
   /// Designated request-making method. Returns a `Cancellable` token to cancel the request later.
-  request(target: Target, progress: ProgressBlock | null = null, completion: Completion): Cancellable {
+  request(target: Target, completion: Completion, progress?: ProgressBlock): Cancellable {
     return this.requestNormal(target, progress, completion);
   }
 
@@ -162,24 +163,39 @@ export class MoyaProvider<Target extends TargetType> implements MoyaProviderType
   ) {
     try {
       let urlRequest = endpoint.urlRequest();
-      closure(new Success(urlRequest));
+      closure(Result.success(urlRequest));
     } catch (error) {
       let moyaError = error as MoyaError;
 
       switch (moyaError.type.type) {
         case MoyaErrorEnum.RequestMapping:
-          closure(new Failure(MoyaError.requestMapping(moyaError.type.url)));
+          closure(Result.failure(MoyaError.requestMapping(moyaError.type.url)));
           break;
 
         case MoyaErrorEnum.ParameterEncoding:
-          closure(new Failure(MoyaError.parameterEncoding(moyaError)));
+          closure(Result.failure(MoyaError.parameterEncoding(moyaError)));
           break;
 
         default:
-          closure(new Failure(MoyaError.underlying(moyaError, null)));
+          closure(Result.failure(MoyaError.underlying(moyaError, null)));
           break;
       }
     }
+  }
+
+  /// Do not stub.
+  static neverStub<Target extends TargetType>(_: Target): StubBehavior {
+    return StubBehavior.never;
+  }
+
+  /// Return a response immediately.
+  static immediatelyStub<Target extends TargetType>(_: Target): StubBehavior {
+    return StubBehavior.immediate;
+  }
+
+  /// Return a response after a delay.
+  static delayedStub<Target extends TargetType>(seconds: number): (_: Target) => StubBehavior {
+    return () => StubBehavior.delayed(seconds);
   }
 }
 
